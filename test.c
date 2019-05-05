@@ -3,7 +3,7 @@
 #include "osqueue.h"
 #include "threadPool.h"
 
-
+/**
 void hello (void* a)
 {
    printf("hello\n");
@@ -31,3 +31,4 @@ int main()
 
    return 0;
 }
+**/

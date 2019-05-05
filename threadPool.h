@@ -2,14 +2,23 @@
 #define __THREAD_POOL__
 
 #include <sys/param.h>
+#include <stdbool.h>
 #include "osqueue.h"
+
+typedef struct {
+    void (*function)(void *);
+    void * param;
+} Tasks;
 
 typedef struct thread_pool
 {
     OSQueue* queue;
     int maxThreads;
     int workingThreads;
-    int finishThreads;
+    //int finishThreads;
+    int shouldFinishTasks;
+    bool destroyStarted;
+   // Tasks * task;
 
     pthread_mutex_t mutex;
     pthread_cond_t conditionMutex;
@@ -18,10 +27,6 @@ typedef struct thread_pool
 
 }ThreadPool;
 
-typedef struct {
-    void (*function)(void *);
-    void * param;
-} Task;
 
 typedef enum {
     invalid = -1, failed_lock = -2, no_more_place = -3,
