@@ -1,13 +1,18 @@
 #ifndef __THREAD_POOL__
 #define __THREAD_POOL__
 
-#include <sys/param.h>
+//#include <sys/param.h>
 #include <stdbool.h>
 #include "osqueue.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+
 
 typedef struct {
     void (*function)(void *);
-    void * param;
+    void *param;
 } Tasks;
 
 typedef struct thread_pool

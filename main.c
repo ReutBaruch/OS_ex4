@@ -156,6 +156,7 @@ void test_thread_pool_sanity()
         tpInsertTask(tp,hello,NULL);
     }
 
+   // sleep(10);
     tpDestroy(tp,0);
 }
 
@@ -163,6 +164,8 @@ void test_thread_pool_sanity()
 int main()
 {
     test_thread_pool_sanity();
+    int temp;
+   // scanf("%d", &temp);
 
     return 0;
 }

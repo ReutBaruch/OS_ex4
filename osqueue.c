@@ -1,5 +1,6 @@
 #include "osqueue.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 OSQueue* osCreateQueue()
 {
@@ -51,6 +52,7 @@ void* osDequeue(OSQueue* q)
 {
    OSNode* previousHead;
    void* data;
+    //printf("deq\n");
    
    previousHead = q->head;
    
@@ -64,5 +66,6 @@ void* osDequeue(OSQueue* q)
    
    data = previousHead->data;
    free(previousHead);
+   //printf("end of deq\n");
    return data;
 }

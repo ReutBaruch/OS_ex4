@@ -1,9 +1,4 @@
 #include "threadPool.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <stdbool.h>
 
 #define ERROR_TYPE "Error in system call\n"
 #define ERROR_LEN 255
@@ -21,22 +16,29 @@ static void* threadPoolForCreate(void *tempThreadPool){
 
         if (pthread_mutex_lock(&(threadPool->mutex)) != 0) {
             errorFunc();
-            return (void *) -1;
-            //return (void *) invalid;
         }
 
         while ((osIsQueueEmpty(threadPool->queue)) && (!threadPool->destroyStarted)) {
             pthread_cond_wait(&(threadPool->conditionMutex), &(threadPool->mutex));
         }
 
+        if ((threadPool->destroyStarted)){
+            if (threadPool->shouldFinishTasks == 0){
+                break;
+            } else if ((threadPool->shouldFinishTasks == 1) && (osIsQueueEmpty(threadPool->queue))){
+                break;
+            }
+        }
+
+
+/**
         if ((threadPool->destroyStarted) && ((threadPool->shouldFinishTasks == 0) ||
                                              ((threadPool->shouldFinishTasks == 1) &&
                                               (osIsQueueEmpty(threadPool->queue))))) {
-            if (pthread_mutex_unlock(&(threadPool->mutex)) != 0) {
-                errorFunc();
-            }
+            //   printf("im here\n");
+
             break;
-        }
+        }**/
         //  }
 
         /* if (threadPool->destroyStarted){
@@ -48,20 +50,21 @@ static void* threadPoolForCreate(void *tempThreadPool){
              }
          }*/
 
-
-        //   pthread_mutex_unlock(&(threadPool->mutex));
         Tasks *newTask;
         newTask = osDequeue(threadPool->queue);
-        pthread_mutex_unlock(&(threadPool->mutex));
+        if(pthread_mutex_unlock(&(threadPool->mutex)) != 0){
+            errorFunc();
+        }
         (*(newTask->function))(newTask->param);
+
+        free(newTask);
     }//end of while true
 
-    pthread_mutex_unlock(&(threadPool->mutex));
+    if(pthread_mutex_unlock(&(threadPool->mutex)) != 0){
+        errorFunc();
+    }
 
-
-
-  //  }
-    return 0;
+    pthread_exit(NULL);
 }
 
 ThreadPool* tpCreate(int numOfThreads){
@@ -89,11 +92,6 @@ ThreadPool* tpCreate(int numOfThreads){
         return NULL;
     }
 
-  /*  threadPool->task = (Tasks *)malloc(sizeof(Tasks)*numOfThreads);
-    if (threadPool->task == NULL){
-        errorFunc();
-    }
-*/
     if ((pthread_mutex_init(&(threadPool->mutex), NULL) != 0)
     || (pthread_cond_init(&(threadPool->conditionMutex), NULL) !=0)){
         errorFunc();
@@ -105,6 +103,7 @@ ThreadPool* tpCreate(int numOfThreads){
     for (; i < numOfThreads; i++){
 
         int err = pthread_create(&(threadPool->threads[i]), NULL, threadPoolForCreate, (void*)threadPool);
+
         if (err != 0){
             errorFunc();
             return NULL;
@@ -117,14 +116,14 @@ ThreadPool* tpCreate(int numOfThreads){
 
 int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* param){
     //if we called Destroy we don't want to add any more tasks
-    if (!threadPool->destroyStarted) {
+    //if (!threadPool->destroyStarted) {
 
-        if ((threadPool == NULL) || (computeFunc == NULL)) {
+        if (threadPool->destroyStarted){
             return invalid;
         }
 
-        if (pthread_mutex_lock(&(threadPool->mutex)) != 0) {
-            return failed_lock;
+        if ((threadPool == NULL) || (computeFunc == NULL)) {
+            return invalid;
         }
 
         Tasks *newTask;
@@ -141,6 +140,10 @@ int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* par
         newTask->function = computeFunc;
         newTask->param = param;
 
+        if (pthread_mutex_lock(&(threadPool->mutex)) != 0) {
+            return failed_lock;
+        }
+
         //insert new task to queue
         osEnqueue(threadPool->queue, newTask);
 
@@ -151,14 +154,16 @@ int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* par
         }
 
         if (pthread_mutex_unlock(&(threadPool->mutex)) != 0) {
+            errorFunc();
             return -1;
             //return failed_lock;
         }
 
+        sleep(0.1);
         return 0;
-    }
+ //   }
 
-    return -1;
+    //return -1;
 }
 
 void tpDestroy(ThreadPool* threadPool, int shouldWaitForTasks){
@@ -180,11 +185,13 @@ void tpDestroy(ThreadPool* threadPool, int shouldWaitForTasks){
 
     int i = 0;
     for (; i < threadPool->maxThreads; i++){
+       // printf("join\n");
         if (pthread_join(threadPool->threads[i], NULL) != 0){
             errorFunc();
         }
     }
 
+   // printf("destroy\n");
     free(threadPool->threads);
     osDestroyQueue(threadPool->queue);
     pthread_mutex_destroy(&(threadPool->mutex));
